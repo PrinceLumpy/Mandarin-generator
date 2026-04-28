@@ -4,6 +4,18 @@ import os
 from wordfreq import word_frequency
 from chinese_english_lookup import Dictionary
 
+# --- Monkey patch to force UTF-8 ---
+import chinese_english_lookup.dictionary as d
+
+_original_open = open
+def utf8_open(*args, **kwargs):
+    if "encoding" not in kwargs:
+        kwargs["encoding"] = "utf-8"
+    return _original_open(*args, **kwargs)
+
+d.open = utf8_open
+# -----------------------------------
+
 # --- PinyinToneMark and decode_pinyin ---
 PinyinToneMark = {
     0: "aoeiuv\u00fc",
@@ -67,18 +79,21 @@ def main():
         print(f"Error: Could not find '{input_file}'.")
         return
 
-    # Split by commas or whitespace, then filter out empty strings
-    words = [w.strip() for w in re.split(r'[,\s]+', content) if w.strip()]
+    # Split by commas or newlines only (not spaces), then filter out empty strings
+    words = [w.strip() for w in re.split(r'[,\n]+', content) if w.strip()]
     unique_words = list(set(words))
 
     # 3. Sort words by frequency (descending)
     unique_words.sort(key=lambda w: word_frequency(w, 'zh'), reverse=True)
 
-    # 4. Save the sorted list to a text file separated by commas
+    # 4. Save ALL sorted unique words (including single-char) to text file
     with open(output_txt, "w", encoding="utf-8") as f:
         f.write(",".join(unique_words))
-    
-    print(f"Sorted {len(unique_words)} words. List saved to {output_txt}.")
+
+    # Exclude single-character words for CSV only
+    multi_char_words = [w for w in unique_words if len(w) > 1]
+
+    print(f"Sorted {len(unique_words)} words ({len(multi_char_words)} multi-char). List saved to {output_txt}.")
 
     # 5. Extract data and write to CSV
     # utf-8-sig ensures Excel opens the Chinese characters correctly
@@ -87,21 +102,30 @@ def main():
         writer = csv.writer(f, delimiter=',', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(["Characters", "Meaning", "Pronunciation"])
         
-        for word in unique_words:
+        for word in multi_char_words:
             meaning = "N/A"
             pronunciation = "N/A"
             
             try:
                 word_entry = lookup_dict.lookup(word)
                 if word_entry and word_entry.definition_entries:
-                    # Access the first definition object
+                    # Pick first non-surname entry, fallback to second if first is surname
                     entry = word_entry.definition_entries[0]
+                    if entry.definitions and entry.definitions[0].startswith("surname "):
+                        if len(word_entry.definition_entries) > 1:
+                            entry = word_entry.definition_entries[1]
+
+                    # If ALL definitions are "variant of ...", use next entry if available
+                    non_variant_defs = [d for d in entry.definitions if not d.startswith("variant of ")]
+                    if not non_variant_defs and len(word_entry.definition_entries) > 1:
+                        entry = word_entry.definition_entries[1]
                     
                     # Convert niu2 you2 guo3 -> niúyóuguǒ
                     pronunciation = decode_pinyin(entry.pinyin)
                     
-                    # Join definition list into a string using semicolons
-                    meaning = "; ".join(entry.definitions)
+                    # Join definition list into a string using semicolons, excluding CL: and variant of entries
+                    filtered_defs = [d for d in entry.definitions if not d.startswith("CL:") and not d.startswith("variant of ")]
+                    meaning = "; ".join(filtered_defs)
             except Exception as e:
                 # Silently skip errors for unrecognized words
                 pass
