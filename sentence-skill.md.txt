@@ -1,0 +1,102 @@
+---
+name sentence-flashcards
+description Generate Anki cloze-deletion CSV flashcards from Chinese word lists. 50 at a time
+---
+ 
+# Mandarin Anki Flashcard Generation Instructions
+ 
+## CSV Format
+- Two columns Hanzi and hint
+- Hanzi column contains the Chinese sentence with cloze deletion
+- hint column contains the English translation
+- ALWAYS wrap both fields in double quotes to handle commas in sentences
+- Format sentence,translation
+- Example 我想吃饭，然后{{c1出去}}。,I want to eat, then go out.
+## Cloze Deletion Format
+- ALWAYS wrap the target word in {{c1word}} format
+- Example 我{{c1得到}}了好消息。
+- Example 这个{{c1句子}}太长了！
+## CRITICAL Single-Character Word Rules
+ONLY apply this rule when the WORD IN THE LIST is a single character.
+ 
+Look at the ACTUAL WORD PROVIDED
+- If word is 语言 (2 characters) → Use {{c1语言}} in sentence
+- If word is 语 (1 character) → Use {{c1语}} ALONE, NOT in compounds
+- DO NOT fold single character words form the words list into other compound words containing that character. Every word given should have at least one sentence. even if just as a measure word
+When the target word is a SINGLE CHARACTER
+1. Create sentences using ONLY that character alone
+2. DO NOT use the character as part of a compound word
+3. The character should stand independently in the sentence
+Examples
+- Word given 草地 → {{c1草地}}上有孩子在玩 ✅
+- Word given 草 → 这里的{{c1草}}很绿 ✅ (草 stands alone)
+- Word given 草 → {{c1草}}地上有孩子 ❌ (草 is part of 草地)
+- Word given 收到 → 我{{c1收到}}了你的信 ✅
+- Word given 收 → 请{{c1收}}好你的东西 ✅ (收 stands alone)
+- Word given 收 → 我{{c1收}}到了 ❌ (收 is part of 收到)
+## Multiple Usages
+- If a word has multiple meanings or usages, create sentences for each usage
+- Each usage gets its own CSV row
+## Sentence Quality
+- Reflects a real, everyday situation — not textbook
+  Good 我的银行卡{{c1被}}冻结了。
+  Bad 这{{c1很}}重要。
+- Makes the word's meaning obvious from context alone
+  Good 他找对象{{c1找}}了15年了。
+  Bad 他很{{c1努力}}。
+- Memorable — emotionally resonant, funny, or surprising
+  Good 我当时{{c1吓到}}了。
+  Bad 我当时在{{c1学校}}。
+- Concise — one clause, no commas. The single clause itself must contain specific, concrete detail. Do not rely on a second clause to carry the meaning.
+Good 他{{c1放弃}}了医学院的录取。
+Bad 他{{c1放弃}}了，很可惜。 ❌ (comma)
+Bad 他{{c1放弃}}了。 ❌ (vague — where did the detail go)
+### 7. Report Results
+ 
+After generating CSV, provide summary
+ 
+```
+Original word count Y
+Duplicates removed Z
+Created flashcard CSV with X entries.
+ 
+[If duplicates exist, list them]
+Duplicates found
+- 传真 (appeared 2 times)
+- 正好 (appeared 3 times)
+```
+ 
+## Complete Workflow
+ 
+```python
+# Pseudocode for complete process
+def generate_flashcards(input_source)
+    # 1. Extract words
+    words = extract_words(input_source)
+    original_count = len(words)
+    
+    # 2. Find duplicates
+    duplicates = find_duplicates(words)
+    
+    # 3. Get unique words
+    unique_words = remove_duplicates(words)
+    unique_count = len(unique_words)
+    
+    # 5. Generate CSV
+    csv_data = []
+    for word in unique_words
+        characters = word
+        meaning = get_meaning(word)
+        pronunciation = get_pinyin(word)
+        csv_data.append([characters, meaning, pronunciation])
+    
+    # 6. Write CSV
+    write_csv('mntuser-dataoutputschinese_flashcards.csv', csv_data)
+    
+    # 7. Report
+    report_summary(original_count, unique_count, duplicates)
+```
+ 
+- Keep responses concise
+- No need for lengthy explanations
+- Just deliver the CSV file
