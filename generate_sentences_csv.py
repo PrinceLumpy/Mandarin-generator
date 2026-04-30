@@ -7,7 +7,7 @@ Inputs (input_files/):
   known_words.txt                         – comma-separated words you already know
 
 Outputs (output_files/):
-  setence_flashcards.csv – Anki import (Hanzi / hint / TopDownWords / Audio)
+  sentence_flashcards.csv – Anki import (Hanzi / hint / TopDownWords / Audio)
   audio_download.csv     – word, sentence_id pairs for bulk audio download
 """
 
@@ -15,6 +15,7 @@ import csv
 import os
 import re
 from collections import defaultdict
+from hanziconv import HanziConv  # Add this to your imports
 
 import jieba
 from tatoebatools import tatoeba, ParallelCorpus
@@ -35,7 +36,7 @@ d.open = utf8_open
 # region Configuration 
 INPUT_WORDS  = "input_files/words_input_for_sentence_generation.txt"
 KNOWN_WORDS  = "input_files/known_words.txt"
-OUT_CARDS    = "output_files/setence_flashcards.csv"
+OUT_CARDS    = "output_files/sentence_flashcards.csv"
 OUT_AUDIO_DL = "output_files/audio_download.csv"
 
 PINYIN_VOWELS = "aoeiuvü"
@@ -145,19 +146,25 @@ def find_unknown_words(sentence, target, known, d: Dictionary):
 
 
 # region Stnc Scoring
-def score_sentence(text: str, word: str, has_audio: bool) -> int:
-    score = 0
+def score_sentence(text: str, word: str, has_audio: bool) -> float:
     n = len(text)
-    if   n <= 8: score += 4
-    elif n <= 20: score -= 3
+    if   5 <= n <= 7: score = 0.0
+    elif n < 5:       score = -3.0 * (5 - n)
+    else:             score = -2.0 * (n - 7)
+    if n < 4:  score -= 1000 * (4 - n)
+    if n > 12: score -= 1000 * (n - 12)
     if text.count(word) == 1: score += 3
     if not text.startswith(word): score += 1
-    if has_audio: score += 2
+    if has_audio: score += 500
     return score
 # endregion
 
 
 # region Scan Tatoeba
+def simplify(text):
+    """Converts Traditional Chinese to Simplified."""
+    return HanziConv.toSimplified(text)
+
 def load_audio_map() -> dict:
     """sentence_id -> audio_id for Chinese sentences (one audio per sentence)."""
     print("Loading audio index…")
@@ -181,7 +188,7 @@ def collect_candidates(words: set, audio_map: dict) -> dict[str, list]:
     for n, (zh, en) in enumerate(ParallelCorpus("cmn", "eng"), 1):
         if n % 100_000 == 0:
             print(f"  …{n:,} pairs scanned")
-        zh_text = getattr(zh, "text", None) or str(zh)
+        zh_text = simplify(getattr(zh, "text", None) or str(zh))
         en_text = getattr(en, "text", None) or str(en)
         zh_id = getattr(zh, "id", None) or getattr(zh, "sentence_id", None)
         for word in words:

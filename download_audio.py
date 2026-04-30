@@ -13,6 +13,10 @@ def download(char, audio_id):
     url = f"https://tatoeba.org/audio/download/{audio_id}"
     out_path = os.path.join(OUTPUT_DIR, f"{char}.mp3")
 
+    # Skip if file already exists (useful if the script crashes)
+    if os.path.exists(out_path):
+        return f"SKIP {char}"
+
     for attempt in range(5):
         try:
             r = requests.get(url, timeout=30)
