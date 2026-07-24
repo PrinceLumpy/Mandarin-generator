@@ -1,0 +1,9 @@
+{
+    "name": "yomitan_api",
+    "description": "Yomitan API",
+    "type": "stdio",
+    "path": "C:\\Users\\Steve\\Music\\Immersion Settings\\yomitan-api\\yomitan_api.bat",
+    "allowed_extensions": [
+        "{6b733b82-9261-47ee-a595-2dda294a4d08}"
+    ]
+}
